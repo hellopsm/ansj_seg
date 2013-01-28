@@ -42,22 +42,27 @@ public class NlpAnalysis extends Analysis {
 					NumRecognition.recognition(graph.terms);
 				}
 
+				// 词性标注
+				List<Term> result = getResult();
+				new NatureRecognition(result).recognition();
+				
+				
 				// 新词发现训练
 				learn.learn(graph);
 
 				// 用户自定义词典的识别
 				new UserDefineRecognition(graph.terms).recognition();
-				graph.rmLittlePath();
-				graph.walkPathByFreq();
-
-				// 进行新词发现
-				new NewWordRecognition(graph.terms, learn).recognition();
-				graph.rmLittlePath();
+//				graph.rmLittlePath();
 				graph.walkPathByScore();
 
-				// 词性标注
-				List<Term> result = getResult();
-				new NatureRecognition(result).recognition();
+				
+				// 进行新词发现
+				new NewWordRecognition(graph.terms, learn).recognition();
+				graph.walkPathByScore();
+
+				//优化后重新获得最优路径
+				result = getResult();
+				
 				return result;
 			}
 
@@ -87,5 +92,9 @@ public class NlpAnalysis extends Analysis {
 
 	public static List<Term> paser(String str, LearnTool learn) {
 		return new NlpAnalysis(learn).paserStr(str);
+	}
+	
+	public static List<Term> paser(String str) {
+		return new NlpAnalysis(new LearnTool()).paserStr(str);
 	}
 }

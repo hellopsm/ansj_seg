@@ -4,12 +4,19 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
+import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ResourceBundle;
 
+import love.cq.domain.WoodInterface;
+import love.cq.util.IOUtil;
+import love.cq.util.StringUtil;
+
 import org.ansj.dic.DicReader;
 import org.ansj.domain.BigramEntry;
+import org.ansj.library.InitDictionary;
 
 /**
  * 这个类储存一些公用变量.
@@ -19,6 +26,9 @@ import org.ansj.domain.BigramEntry;
  */
 public class MyStaticValue {
 
+	/**
+	 * 用户自定义词典的加载,如果是路径就扫描路径下的dic文件
+	 */
 	public static String userDefinePath = null;
 
 	/**
@@ -34,8 +44,7 @@ public class MyStaticValue {
 	public static BufferedReader getPersonReader() {
 		return DicReader.getReader("person/person.dic");
 	}
-	
-	
+
 	/**
 	 * 机构名词典
 	 * 
@@ -44,7 +53,7 @@ public class MyStaticValue {
 	public static BufferedReader getCompanReader() {
 		return DicReader.getReader("company/company.data");
 	}
-	
+
 	/**
 	 * 机构名词典
 	 * 
@@ -164,30 +173,60 @@ public class MyStaticValue {
 	 * @return
 	 */
 	public static BigramEntry[][] getBigramTables() {
-		InputStream inputStream = null;
-		ObjectInputStream objectInputStream = null;
-		BigramEntry[][] bigramTables = new BigramEntry[0][0];
+		BigramEntry[][] result = new BigramEntry[0][0];
+		BufferedReader reader = null;
 		try {
-			inputStream = DicReader.getInputStream("bigramdict.data");
-			objectInputStream = new ObjectInputStream(inputStream);
-			bigramTables = (BigramEntry[][]) objectInputStream.readObject();
+			reader = IOUtil.getReader(DicReader.getInputStream("bigramdict.dic"), "UTF-8");
+			String temp = null;
+			String[] strs = null;
+			result = new BigramEntry[423152][0];
+			int fromId = 0;
+			int toId = 0;
+			int freq = 0;
+			int length = 0;
+			BigramEntry to = null;
+			while ((temp = reader.readLine()) != null) {
+				if (StringUtil.isBlank(temp)) {
+					continue;
+				}
+
+				strs = temp.split("\t");
+				freq = Integer.parseInt(strs[1]);
+				strs = strs[0].split("@");
+				if ((fromId = InitDictionary.getWordId(strs[0])) <= 0) {
+					fromId = 0;
+				}
+				if ((toId = InitDictionary.getWordId(strs[1])) <= 0) {
+					toId = -1;
+				}
+
+				to = new BigramEntry(toId, freq);
+
+				int index = Arrays.binarySearch(result[fromId], to);
+				if (index > -1) {
+					continue;
+				} else {
+					BigramEntry[] newBranches = new BigramEntry[result[fromId].length + 1];
+					int insert = -(index + 1);
+					System.arraycopy(result[fromId], 0, newBranches, 0, insert);
+					System.arraycopy(result[fromId], insert, newBranches, insert + 1, result[fromId].length - insert);
+					newBranches[insert] = to;
+					result[fromId] = newBranches;
+				}
+
+			}
+		} catch (NumberFormatException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (UnsupportedEncodingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
 		} finally {
-			try {
-				if (objectInputStream != null)
-					objectInputStream.close();
-				if (inputStream != null)
-					inputStream.close();
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			IOUtil.close(reader);
 		}
-		return bigramTables;
+		return result;
 	}
 }

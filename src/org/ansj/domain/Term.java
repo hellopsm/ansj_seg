@@ -11,8 +11,6 @@ public class Term implements Comparable<Term> {
 	private int offe;
 	// 词性列表
 	private TermNatures termNatures = null;
-	// 最大路径
-	// private Path maxPath = Path.NULLPATH;
 	// 同一行内数据
 	private Term next;
 	// 分数
@@ -34,7 +32,7 @@ public class Term implements Comparable<Term> {
 		this.name = name;
 		this.offe = offe;
 		this.termNatures = termNatures;
-		if (termNatures == TermNatures.NR || termNatures == TermNatures.NULL||name.length()==1) {
+		if (termNatures == TermNatures.NR || termNatures == TermNatures.NULL || name.length() == 1) {
 			isFName = ForeignPersonRecognition.isFName(this.name);
 		}
 	}
@@ -74,27 +72,14 @@ public class Term implements Comparable<Term> {
 	}
 
 	/**
-	 * 核心分数的最优的路径
+	 * 核心分数的最优的路径,越小越好
 	 * 
 	 * @param term
 	 */
-	public void setPathPersonScore(Term from) {
+	public void setPathSelfScore(Term from) {
 		double score = this.selfScore + from.getScore();
 		// 维特比进行最优路径的构建
 		if (this.from == null || this.getScore() > score) {
-			this.setFromAndScore(from, score);
-		}
-	}
-
-	/**
-	 * 根据词频词长最优的路径
-	 * 
-	 * @param term
-	 */
-	public void setPathScoreByFreq(Term from) {
-		// 维特比进行最优路径的构建
-		double score = MathUtil.compuScoreFreq(from, this);
-		if (this.from == null || this.getScore() <= score) {
 			this.setFromAndScore(from, score);
 		}
 	}
@@ -203,5 +188,13 @@ public class Term implements Comparable<Term> {
 		} else {
 			return this.name;
 		}
+	}
+
+	/**
+	 * 将term的所有分数置为0
+	 */
+	public void clearScore() {
+		this.score = 0;
+		this.selfScore = 0;
 	}
 }

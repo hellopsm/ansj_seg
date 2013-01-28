@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.ansj.domain.Term;
 import org.ansj.domain.TermNatures;
+import org.ansj.library.InitDictionary;
 import org.ansj.splitWord.Analysis.Merger;
 
 /**
@@ -23,6 +24,7 @@ public class Graph {
 	public boolean hasPerson;
 	// 是否有数字
 	public boolean hasNum;
+
 	// 是否需有歧异
 
 	public Graph(String str) {
@@ -70,6 +72,7 @@ public class Graph {
 	 */
 	protected Term optimalRoot() {
 		Term to = end;
+		to.clearScore();
 		Term from = null;
 		while ((from = to.getFrom()) != null) {
 			for (int i = from.getOffe() + 1; i < to.getOffe(); i++) {
@@ -80,41 +83,97 @@ public class Graph {
 			}
 			// 断开横向链表.节省内存
 			from.setNext(null);
-			to = setToAndfrom(to, from);
+			from.setTo(to);
+			from.clearScore();
+			to = from;
 		}
 		return root;
 	}
 
-	public void rmLittlePath() {
-		int maxTo = -1;
-		Term temp = null;
-		boolean flag = false;
-		for (int i = 0; i < terms.length; i++) {
-			if (terms[i] == null)
-				continue;
-			maxTo = terms[i].getToValue();
-			if (maxTo - i == 1 || i + 1 == terms.length)
-				continue;
-			flag = false;
-			for (int j = i + 1; j < maxTo; j++) {
-				temp = terms[j];
-				if (temp != null && temp.getToValue() > maxTo) {
-					flag = true;
-					i = temp.getToValue() - 1;
-					break;
-				}
-			}
+	 /**
+	 * 删除最短的节点,废了好大劲写的.然后发现木有用..伤不起啊.舍不得删.让他进git体验下吧回头我再删掉-_-!
+	 */
+	 public void rmLittlePath() {
+	 int maxTo = -1;
+	 Term temp = null;
+	 Term maxTerm = null;
+	 // 是否有交叉
+	 boolean flag = false;
+	 int length = terms.length - 1;
+	 for (int i = 0; i < length; i++) {
+	 maxTerm = getMaxTerm(i);
+	
+	 if (maxTerm == null)
+	 continue;
+	
+	 maxTo = maxTerm.getToValue();
+	
+	 /**
+	 * 对字数进行优化.如果一个字.就跳过..两个字.且第二个为null则.也跳过.从第二个后开始
+	 */
+	 switch (maxTerm.getName().length()) {
+	 case 1:
+	 continue;
+	 case 2:
+	 if (terms[i + 1] == null) {
+	 i = i + 1;
+	 continue;
+	 }
+	 }
+	
+	 /**
+	 * 判断是否有交叉
+	 */
+	 for (int j = i + 1; j < maxTo; j++) {
+	 temp = getMaxTerm(j);
+	 if (temp == null) {
+	 continue;
+	 }
+	 if (maxTo < temp.getToValue()) {
+	 maxTo = temp.getToValue();
+	 flag = true;
+	 }
+	 }
+	
+	 if (flag) {
+	 i = maxTo - 1;
+	 flag = false;
+	 } else {
+	 maxTerm.setNext(null);
+	 terms[i] = maxTerm;
+	 for (int j = i + 1; j < maxTo; j++) {
+	 terms[j] = null;
+	 }
+	 }
+	 }
+	 }
 
-			if (!flag) {
-				terms[i].setNext(null);
-				for (int j = i + 1; j < maxTo; j++) {
-					terms[j] = null;
-				}
-				i = maxTo - 1;
+	/**
+	 * 得道最到本行最大term
+	 * 
+	 * @param i
+	 * @return
+	 */
+	private Term getMaxTerm(int i) {
+		// TODO Auto-generated method stub
+		Term maxTerm = terms[i];
+		if (maxTerm == null) {
+			return null;
+		}
+		int maxTo = maxTerm.getToValue();
+		Term term = maxTerm;
+		while ((term = term.getNext()) != null) {
+			if (maxTo < term.getToValue()) {
+				maxTo = term.getToValue();
+				maxTerm = term;
 			}
 		}
+		return maxTerm;
 	}
 
+	/**
+	 * 删除无意义的节点,防止viterbi太多
+	 */
 	public void rmLittleSinglePath() {
 		int maxTo = -1;
 		Term temp = null;
@@ -131,13 +190,6 @@ public class Graph {
 				}
 			}
 		}
-	}
-
-	protected Term setToAndfrom(Term to, Term from) {
-		// TODO Auto-generated method stub
-		from.setTo(to);
-		to.setFrom(from);
-		return from;
 	}
 
 	public void walkPathByScore() {
@@ -157,22 +209,6 @@ public class Graph {
 		optimalRoot();
 	}
 
-	public void walkPathByFreq() {
-		// TODO Auto-generated method stub
-		Term term = null;
-		// BEGIN先行打分
-		mergerFreq(root, 0);
-		// 从第一个词开始往后打分
-		for (int i = 0; i < terms.length; i++) {
-			term = terms[i];
-			while (term != null && term.getFrom() != null && term != end) {
-				int to = term.getToValue();
-				mergerFreq(term, to);
-				term = term.getNext();
-			}
-		}
-		optimalRoot();
-	}
 	public void walkPath() {
 		Term term = null;
 		// BEGIN先行打分
@@ -208,34 +244,17 @@ public class Graph {
 				term = term.getNext();
 			}
 		} else {
-			terms[to] = new Term(String.valueOf(str.charAt(to)), to, TermNatures.NULL);
+			char c = str.charAt(to);
+			TermNatures tn = InitDictionary.termNatures[c];
+			if (tn == null)
+				tn = TermNatures.NULL;
+			terms[to] = new Term(String.valueOf(c), to, tn);
 			terms[to].setPathScore(fromTerm);
 		}
 	}
 
 	/**
-	 * 根据词长打分方法
-	 * 
-	 * @param i
-	 *            起始位置
-	 * @param j
-	 *            起始属性
-	 * @param to
-	 */
-	private void mergerFreq(Term fromTerm, int to) {
-		Term term = null;
-		if (terms[to] != null) {
-			term = terms[to];
-			while (term != null) {
-				// 关系式to.set(from)
-				term.setPathScoreByFreq(fromTerm);
-				term = term.getNext() ;
-			}
-		}
-	}
-
-	/**
-	 * 人名打分方法
+	 * 根据分数
 	 * 
 	 * @param i
 	 *            起始位置
@@ -249,7 +268,7 @@ public class Graph {
 			term = terms[to];
 			while (term != null) {
 				// 关系式to.set(from)
-				term.setPathPersonScore(fromTerm);
+				term.setPathSelfScore(fromTerm);
 				term = term.getNext();
 			}
 		}

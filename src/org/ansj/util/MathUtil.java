@@ -1,10 +1,13 @@
 package org.ansj.util;
 
+import java.util.List;
+
+import org.ansj.domain.NewWordNatureAttr;
 import org.ansj.domain.Term;
 import org.ansj.domain.TermNatures;
 import org.ansj.library.InitDictionary;
 import org.ansj.library.NatureLibrary;
-import org.ansj.library.TwoWordLibrary;
+import org.ansj.library.NgramLibrary;
 import org.ansj.util.recognition.NatureRecognition.NatureTerm;
 
 public class MathUtil {
@@ -17,7 +20,7 @@ public class MathUtil {
 	private static final double dTemp = (double) 1 / MAX_FREQUENCE;
 
 	/**
-	 * 从一个词的词性到另一个词的词性的分数
+	 * 从一个词的词性到另一个词的词的分数
 	 * 
 	 * @param form
 	 *            前面的词
@@ -32,7 +35,7 @@ public class MathUtil {
 			return from.getScore() + MAX_FREQUENCE;
 		}
 
-		int nTwoWordsFreq = TwoWordLibrary.getTwoWordFreq(from, to);
+		int nTwoWordsFreq = NgramLibrary.getTwoWordFreq(from, to);
 		double value = -Math.log(dSmoothingPara * frequency / (MAX_FREQUENCE + 80000) + (1 - dSmoothingPara)
 				* ((1 - dTemp) * nTwoWordsFreq / frequency + dTemp));
 
@@ -73,37 +76,68 @@ public class MathUtil {
 		return score;
 	}
 
+
+	public static void main(String[] args) {
+		System.out.println(Math.log(dTemp * 2));
+	}
+
 	/**
-	 * 传入一个字符串.根据字符串的.字计算新词的可能性
+	 * 新词熵及其左右熵
 	 * 
-	 * @param name
-	 * @param tn
-	 * @return
+	 * @param all
 	 */
-	public static double scoreWord(String name, TermNatures tn) {
-		int freq = 1  ;
-		int smoothing = 1 ;
-		if(tn.equals(TermNatures.NR)){
-			smoothing = 5 ;
-		}
-		if(tn.equals(TermNatures.NT)){
-			smoothing = 2 ;
-		}
-		double score = 0 ;
+	public static double leftRightEntropy(List<Term> all) {
+		// TODO Auto-generated method stub
+		double score = 0;
+		NewWordNatureAttr newWordAttr = null;
+		Term first = all.get(0);
 		
-		for (int i = 0; i < name.length(); i++) {
-			TermNatures termNatures = InitDictionary.termNatures[name.charAt(i)] ;
-			if(termNatures==null){
-				freq = 1 ;
-			}else{
-				freq = termNatures.allFreq ;
-			}
-			score += Math.log((freq+1)*dTemp) ;
+
+		// 查看左右链接
+		int twoWordFreq = NgramLibrary.getTwoWordFreq(first.getFrom(), first);
+		score -= twoWordFreq;
+		
+
+		// 查看右连接
+		int length = all.size() - 1;
+		Term end = all.get(all.size() - 1);
+		twoWordFreq = NgramLibrary.getTwoWordFreq(end, end.getTo());
+		score -= twoWordFreq;
+		
+
+		// 查看内部链接
+		for (int i = 0; i < length; i++) {
+			score -= NgramLibrary.getTwoWordFreq(all.get(i), all.get(i + 1));
 		}
-		return (score/name.length())*smoothing;
+		if (score < -3) {
+			return 0;
+		}
+		
+
+		// 首字分数
+		newWordAttr = first.getTermNatures().newWordAttr;
+		score += getTermScore(newWordAttr, newWordAttr.getB());
+		// 末字分数
+		newWordAttr = end.getTermNatures().newWordAttr;
+		score += getTermScore(newWordAttr, newWordAttr.getE());
+		// 中词分数
+		double midelScore = 0 ;
+		Term term = null ;
+		for (int i = 1; i < length ; i++) {
+			term = all.get(i) ;
+			newWordAttr = term.getTermNatures().newWordAttr;
+			midelScore += getTermScore(newWordAttr, newWordAttr.getM());
+		}
+		score +=  midelScore/(length) ;
+		return score;
+	}
+
+	private static double getTermScore(NewWordNatureAttr newWordAttr, int freq) {
+		if(newWordAttr==NewWordNatureAttr.NULL){
+			return 3 ;
+		}
+		return (freq / (double) (newWordAttr.getAll() + 1)) * Math.log(500000 / (double) (newWordAttr.getAll() + 1));
 	}
 	
-	public static void main(String[] args) {
-		System.out.println(Math.log(dTemp*2));
-	}
+
 }

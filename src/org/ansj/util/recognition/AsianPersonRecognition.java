@@ -7,7 +7,7 @@ import org.ansj.domain.NewWord;
 import org.ansj.domain.PersonNatureAttr;
 import org.ansj.domain.Term;
 import org.ansj.domain.TermNatures;
-import org.ansj.library.TwoWordLibrary;
+import org.ansj.library.NgramLibrary;
 import org.ansj.util.TermUtil;
 
 /**
@@ -136,7 +136,7 @@ public class AsianPersonRecognition {
 				endFreq = 10;
 				flag = false;
 			} else if (terms[i] != null) {
-				int twoWordFreq = TwoWordLibrary.getTwoWordFreq(term, terms[i]);
+				int twoWordFreq = NgramLibrary.getTwoWordFreq(term, terms[i]);
 				if (twoWordFreq > 3) {
 					return null;
 				}
@@ -170,7 +170,7 @@ public class AsianPersonRecognition {
 		List<NewWord> all = new ArrayList<NewWord>();
 		List<Term> termList = recogntion_();
 		for (Term term2 : termList) {
-			all.add(new NewWord(term2.getName(), 1, TermNatures.NR));
+			all.add(new NewWord(term2.getName(),  TermNatures.NR,term2.selfScore ,1));
 		}
 		return all;
 	}
